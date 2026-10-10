@@ -1,0 +1,31 @@
+# CI：不需要任何依赖，跑纯逻辑单测 + 确认仓库里的构建产物没有过期。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 纯逻辑单测（含产物同步检查）
+        run: npm test
+
+      - name: 客户端产物语法检查
+        run: |
+          cp lib/client.js /tmp/client.mjs
+          node --check /tmp/client.mjs
+
+      - name: 重新构建后仓库不应有改动
+        run: |
+          node scripts/build.mjs
+          git diff --exit-code -- lib/client.js

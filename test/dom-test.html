@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>FREEDOM DiViNG 插件自测</title>
+<style>
+	body { font: 13px/1.65 ui-monospace, Consolas, monospace; background: #101216; color: #d7dbe0; padding: 16px; }
+	#fixture { margin: 12px 0; padding: 8px; border: 1px dashed #475569; }
+
+	/* 模拟官方级联：
+	   - 运行行给出正文色与高亮色变量（原版是蓝色系）
+	   - TextShimmer 的真实文本继承颜色，扫过的高亮层用变量取色
+	   只有这两条在场，才能验证插件的覆盖是否真的生效。 */
+	[data-chat-running] { color: #6aa9ff; --dsw-alias-label-shimmer: #a8ccff; }
+	[data-shimmer] .text { color: inherit; }
+	[data-shimmer] > .decoration > .sweep { color: var(--dsw-alias-label-shimmer); }
+</style>
+</head>
+<body>
+<h3>FREEDOM DiViNG —— 插件自测（真实浏览器里跑）</h3>
+
+<!-- 与官方 TextShimmer 同构的夹具：类名是占位名，插件只认结构与 data 属性。
+     这里刻意保留源码缩进产生的空白文本节点，比 React 的实际输出更苛刻。 -->
+<div id="fixture">
+	<div data-chat-running>
+		<span role="status" aria-live="polite">深度求索中</span>
+		<span aria-hidden="true"></span>
+		<span class="runningContent">
+			<span class="runningIcon" aria-hidden="true"></span>
+			<span class="root runningText" data-shimmer>
+				<span class="content"><span class="text">深度求索中，用时 1分23秒 ···</span></span>
+				<span class="decoration" aria-hidden="true">
+					<span class="sweep">
+						<span class="content highlight"><span class="text" data-shimmer-text="深度求索中，用时 1分23秒 ···"></span></span>
+					</span>
+				</span>
+			</span>
+		</span>
+	</div>
+</div>
+
+<pre id="out"></pre>
+
+<script>
+	// 假 React：hook 退化成同步调用，用来验证探针组件的装配逻辑（不渲染真组件）。
+	window.__reactEffects = [];
+	window.__fakeReact = {
+		useCallback: (fn) => fn,
+		useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
+		useEffect: (fn) => {
+			const cleanup = fn();
+			if (typeof cleanup === 'function') window.__reactEffects.push(cleanup);
+		}
+	};
+	window.__ModuleLoader__ = {
+		load(definition) {
+			window.__plugin = definition.factory(function fakeRequire(specifier) {
+				if (specifier === 'react') return window.__fakeReact;
+				throw new Error('unexpected require: ' + specifier);
+			});
+		}
+	};
+</script>
+<script src="../lib/client.js"></script>
+<script>
+	const lines = [];
+	let failed = 0;
+	function check(name, actual, expected) {
+		const ok = actual === expected;
+		if (!ok) failed += 1;
+		lines.push(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : `\n        期望: ${JSON.stringify(expected)}\n        实际: ${JSON.stringify(actual)}`}`);
+	}
+	const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+	const snapshotOf = (efforts, selected, defaultEffort) => ({
+		current: { provider: 'p', model: 'm', reasoningEffort: selected },
+		groups: [{ id: 'p', models: [{ id: 'm', reasoning: { efforts, defaultEffort: defaultEffort ?? 'high' } }] }]
+	});
+
+	(async () => {
+		const t = window.__plugin.__test;
+		const shimmer = document.querySelector('[data-chat-running] [data-shimmer]');
+		const realText = shimmer.querySelector('.content .text').firstChild;
+		const copy = shimmer.querySelector('.decoration [data-shimmer-text]');
+
+		check('bundle 导出 apply / inject', typeof window.__plugin.apply === 'function' && Array.isArray(window.__plugin.inject), true);
+		check('夹具初始文案', realText.nodeValue, '深度求索中，用时 1分23秒 ···');
+		check('夹具带空白节点（比 React 输出更苛刻）', shimmer.firstChild.nodeType, 3);
+
+		// ---- 纯函数 ----
+		check('中文 1分23秒', t.freedomLabel('深度求索中，用时 1分23秒 ···'), 'FREEDOM DiViNG，1m23s...');
+		check('中文 23秒', t.freedomLabel('深度求索中，用时 23秒 ···'), 'FREEDOM DiViNG，0m23s...');
+		check('英文 1m 23s', t.freedomLabel('Deep diving for 1m 23s ···'), 'FREEDOM DiViNG，1m23s...');
+		check('未计时', t.freedomLabel('深度求索中'), 'FREEDOM DiViNG');
+		check('幂等（已是目标文案）', t.freedomLabel('FREEDOM DiViNG，1m23s...'), 'FREEDOM DiViNG，1m23s...');
+
+		// ---- 强度判定 ----
+		const four = [{ id: 'off' }, { id: 'low' }, { id: 'high' }, { id: 'max' }];
+		check('四档选 max → 金色', t.isTopEffort(snapshotOf(four, 'max')), true);
+		check('四档选 high → 不金色', t.isTopEffort(snapshotOf(four, 'high')), false);
+		check('未显式选择时用默认档 high → 不金色', t.isTopEffort(snapshotOf(four, undefined)), false);
+		check('三档选 max → 金色', t.isTopEffort(snapshotOf([{ id: 'low' }, { id: 'high' }, { id: 'max' }], 'max')), true);
+		check('目录未加载 + 官方档位名 max → 金色', t.isTopEffort({ current: { provider: 'p', model: 'm', reasoningEffort: 'max' }, groups: [] }), true);
+		check('目录未加载 + high → 不金色', t.isTopEffort({ current: { provider: 'p', model: 'm', reasoningEffort: 'high' }, groups: [] }), false);
+		check('模型无推理档位 → 不金色', t.isTopEffort({ current: { provider: 'p', model: 'm' }, groups: [{ id: 'p', models: [{ id: 'm' }] }] }), false);
+		check('空快照 → 不金色', t.isTopEffort(null), false);
+
+		// ---- apply(ctx) 装配 ----
+		let storeSnapshot = snapshotOf(four, 'max');
+		const store = { subscribe: () => () => {}, getSnapshot: () => storeSnapshot };
+		const slot = {};
+		const cleanups = [];
+		const makeCtx = (models) => ({
+			effect(fn) { cleanups.push(fn()); },
+			get(name) { return name === 'modelDirectories' ? models : undefined; },
+			slots: {
+				inject(key, callback) {
+					// 官方语义：插槽出现时回调，回调里 register 组件
+					slot.key = key;
+					slot.dispose = callback();
+				},
+				register(definition, component) {
+					slot.definition = definition;
+					slot.component = component;
+					return () => {};
+				}
+			}
+		});
+		let threw = null;
+		try { window.__plugin.apply(makeCtx({ directoryFor: () => ({ store, load: async () => {} }) })); } catch (error) { threw = String(error); }
+		check('apply(ctx) 不抛错', threw, null);
+		check('注入了样式标签', document.querySelector('style[data-plugin="dsh-client-freedom-diving"]') !== null, true);
+		check('注册到 composer 右侧插槽', slot.key, 'conversation.input.right');
+		check('插槽声明 id', slot.definition.id, 'dsh-client-freedom-diving');
+		check('探针不渲染任何节点', slot.component(slot.definition.inject('session-1')), null);
+
+		await frame();
+		check('真实文本被改写', realText.nodeValue, 'FREEDOM DiViNG，1m23s...');
+		check('高亮副本属性被改写', copy.getAttribute('data-shimmer-text'), 'FREEDOM DiViNG，1m23s...');
+		check('文本节点未被替换（React 计时器仍可写入）', shimmer.querySelector('.content .text').firstChild === realText, true);
+		check('根节点缩进空白未被误改', shimmer.firstChild.nodeValue.trim(), '');
+		check('再次改写是空操作', t.applyLabel(shimmer), false);
+		check('max 档位写入标记属性', document.documentElement.getAttribute(t.EFFORT_ATTRIBUTE), 'max');
+		check('max：正文变帝王金', getComputedStyle(shimmer).color, 'rgb(242, 193, 78)');
+		check('max：扫过的高亮变浅金', getComputedStyle(shimmer.querySelector('.sweep')).color, 'rgb(255, 240, 176)');
+
+		// ---- 切到 high：文案还在，颜色回落 ----
+		storeSnapshot = snapshotOf(four, 'high');
+		slot.component(slot.definition.inject('session-1'));
+		check('high 档位清掉标记', document.documentElement.getAttribute(t.EFFORT_ATTRIBUTE), 'off');
+		check('high：正文回到原版蓝色', getComputedStyle(shimmer).color, 'rgb(106, 169, 255)');
+		check('high：高亮回到原版浅蓝', getComputedStyle(shimmer.querySelector('.sweep')).color, 'rgb(168, 204, 255)');
+
+		// ---- 模拟 React 每秒重渲染：官方文案写回，观察者应自动补上 ----
+		realText.nodeValue = '深度求索中，用时 1分24秒 ···';
+		copy.setAttribute('data-shimmer-text', '深度求索中，用时 1分24秒 ···');
+		await frame();
+		check('React 重渲染后自动补写', realText.nodeValue, 'FREEDOM DiViNG，1m24s...');
+		check('副本同步到 1m24s', copy.getAttribute('data-shimmer-text'), 'FREEDOM DiViNG，1m24s...');
+
+		realText.nodeValue = '深度求索中';
+		copy.setAttribute('data-shimmer-text', '深度求索中');
+		await frame();
+		check('未计时文案', realText.nodeValue, 'FREEDOM DiViNG');
+
+		// ---- 没有模型目录服务时：文案照改，颜色静默降级 ----
+		const degraded = { key: null, definition: null, component: null };
+		const keepSlot = slot.definition;
+		const ctxWithoutModels = makeCtx(undefined);
+		ctxWithoutModels.slots.register = (definition, component) => {
+			degraded.definition = definition;
+			degraded.component = component;
+			return () => {};
+		};
+		let degradedThrew = null;
+		try { window.__plugin.apply(ctxWithoutModels); } catch (error) { degradedThrew = String(error); }
+		check('缺服务时 apply 也不抛错', degradedThrew, null);
+		check('缺服务时探针返回 null', degraded.component(degraded.definition.inject('session-1')), null);
+		check('缺服务时不写 max 标记', document.documentElement.getAttribute(t.EFFORT_ATTRIBUTE), 'off');
+		realText.nodeValue = '深度求索中，用时 2分5秒 ···';
+		copy.setAttribute('data-shimmer-text', '深度求索中，用时 2分5秒 ···');
+		await frame();
+		check('缺服务时文案仍然替换', realText.nodeValue, 'FREEDOM DiViNG，2m5s...');
+		check('缺服务时颜色保持原样', getComputedStyle(shimmer).color, 'rgb(106, 169, 255)');
+		void keepSlot;
+
+		// ---- 卸载 ----
+		for (const cleanup of [...cleanups, ...window.__reactEffects]) if (typeof cleanup === 'function') cleanup();
+		check('卸载后移除样式', document.querySelector('style[data-plugin="dsh-client-freedom-diving"]'), null);
+
+		document.getElementById('out').textContent = lines.join('\n') + `\n\n${failed === 0 ? '全部通过' : failed + ' 项失败'}`;
+		document.title = failed === 0 ? 'ALL PASS' : failed + ' FAILED';
+	})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# ============================================================================
+# dsh-client-freedom-diving —— DSH bundle patch（挂载声明）
+# ============================================================================
+# DSH 启动时按 bundle 层栈叠加各插件的 patch，本文件把插件插入当前 profile。
+# 安装（以 desktop profile 为例）：
+#   dsh plugin --profile desktop add ./dsh-client-freedom-diving-1.0.0.tgz
+# 安装后需要完全退出并重新打开 DSH，客户端插件在启动时装配。
+# ============================================================================
+
+- insert:
+    - id: freedom-diving
+      name: dsh-client-freedom-diving

@@ -1,0 +1,50 @@
+{
+  "name": "dsh-client-freedom-diving",
+  "version": "1.0.0",
+  "description": "把 DSH「深度求索中」思考提示改成 FREEDOM DiViNG，并在 max 推理强度下显示帝王金（保留高亮扫过特效）",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "thinking",
+    "skin"
+  ],
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "scripts",
+    "test",
+    "docs",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "test": "node --test test/"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pigeoncode258/dsh-client-freedom-diving.git"
+  },
+  "homepage": "https://github.com/pigeoncode258/dsh-client-freedom-diving#readme",
+  "bugs": {
+    "url": "https://github.com/pigeoncode258/dsh-client-freedom-diving/issues"
+  },
+  "author": "pigeoncode258",
+  "license": "MIT"
+}

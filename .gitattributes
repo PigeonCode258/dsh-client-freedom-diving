@@ -1,0 +1,10 @@
+# 全仓库统一 LF。
+#
+# 这不是风格洁癖：test/pure.test.mjs 会逐字节比较 lib/client.js 与 src/client.js
+# 构建出来的内容，如果 Windows 上按 autocrlf 检出成 CRLF，产物同步检查会误报失败。
+* text=auto eol=lf
+
+# 二进制资源不做行尾转换
+*.png binary
+*.webp binary
+*.woff2 binary

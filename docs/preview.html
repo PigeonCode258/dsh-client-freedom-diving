@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dsh-client-freedom-diving · 预览</title>
+<!--
+	README 配图的渲染源：用官方运行指示行的结构与颜色变量，画出三种状态。
+	截图方式：浏览器整页截图 docs/preview.png（宽度 1920）。
+	配色取自 DSH 暗色主题 + 插件常量（#f2c14e / #fff0b0）。
+	真实界面里文字前面还有一个官方的小鲸鱼图标，这里只画文案与配色。
+-->
+<style>
+	:root {
+		--page: #0f1115;
+		--ink: #e6e8eb;
+		--muted: #8b93a1;
+		--line: #23262d;
+
+		/* 官方运行指示行的两个颜色变量（暗色主题下的近似值） */
+		--deep-diving: #6aa9ff;
+		--deep-diving-shimmer: #a8ccff;
+
+		/* 插件的帝王金 */
+		--freedom: #f2c14e;
+		--freedom-shimmer: #fff0b0;
+	}
+
+	* { box-sizing: border-box; }
+
+	body {
+		margin: 0;
+		min-height: 100vh;
+		display: grid;
+		place-items: center;
+		background: var(--page);
+		color: var(--ink);
+		font: 400 16px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+	}
+
+	.card {
+		width: 1120px;
+		padding: 34px 0 30px;
+	}
+
+	.head {
+		display: flex;
+		align-items: baseline;
+		gap: 12px;
+		padding-bottom: 18px;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.head b { font-size: 20px; font-weight: 600; letter-spacing: .2px; }
+	.head span { color: var(--muted); font-size: 13px; }
+
+	.row {
+		display: grid;
+		grid-template-columns: 132px 1fr;
+		align-items: center;
+		gap: 18px;
+		padding: 20px 0;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.row:last-child { border-bottom: 0; }
+
+	.tag {
+		color: var(--muted);
+		font-size: 12px;
+		letter-spacing: .4px;
+		text-transform: uppercase;
+	}
+
+	/* 运行指示行：正文用 running 的颜色，高亮层用 shimmer 变量 —— 与官方同构 */
+	.running {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 15px;
+		color: var(--deep-diving);
+		--dsw-alias-label-shimmer: var(--deep-diving-shimmer);
+	}
+
+	.running.gold {
+		color: var(--freedom);
+		--dsw-alias-label-shimmer: var(--freedom-shimmer);
+	}
+
+	.shimmer {
+		position: relative;
+		display: inline-grid;
+		width: max-content;
+		vertical-align: top;
+	}
+
+	/* 注意用后代选择器：高亮层里的 .content.highlight 不是 .shimmer 的直接子元素，
+	   它同样需要 display:flex，否则对行内元素做 transform 无效、字形只是被平移，出现重影。 */
+	.shimmer .content { display: flex; align-items: center; }
+	.shimmer .text { color: inherit; }
+
+	/* 扫过的高亮层：真实动画是 1.5s 从 -100% 扫到 100%，截图时定在中段。
+	   官方用「sweep 位移 + highlight 反向位移」让字形与正文对齐、只有遮罩在动，
+	   这里照抄同一套结构，否则截图里会出现重影。 */
+	.decoration {
+		position: absolute;
+		inset: 0;
+		overflow: clip;
+		pointer-events: none;
+	}
+
+	.sweep {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		color: var(--dsw-alias-label-shimmer);
+		mask-image: linear-gradient(105deg, transparent 0%, #000 40% 60%, transparent 100%);
+		transform: translateX(-34%);
+	}
+
+	.highlight {
+		width: 100%;
+		height: 100%;
+		transform: translateX(34%);
+	}
+
+	.sweep .text { color: inherit; }
+</style>
+</head>
+<body>
+<div class="card">
+	<div class="head">
+		<b>dsh-client-freedom-diving</b>
+		<span>运行指示行：文案 + 配色（截图仅示意文案与颜色，真实界面文字前还有官方的小鲸鱼图标）</span>
+	</div>
+
+	<div class="row">
+		<div class="tag">原版</div>
+		<div class="running">
+			<span class="shimmer">
+				<span class="content"><span class="text">深度求索中，用时 1分23秒 ···</span></span>
+				<span class="decoration" aria-hidden="true">
+					<span class="sweep"><span class="content highlight"><span class="text">深度求索中，用时 1分23秒 ···</span></span></span>
+				</span>
+			</span>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="tag">max 档位</div>
+		<div class="running gold">
+			<span class="shimmer">
+				<span class="content"><span class="text">FREEDOM DiViNG，1m23s...</span></span>
+				<span class="decoration" aria-hidden="true">
+					<span class="sweep"><span class="content highlight"><span class="text">FREEDOM DiViNG，1m23s...</span></span></span>
+				</span>
+			</span>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="tag">其它档位</div>
+		<div class="running">
+			<span class="shimmer">
+				<span class="content"><span class="text">FREEDOM DiViNG，1m23s...</span></span>
+				<span class="decoration" aria-hidden="true">
+					<span class="sweep"><span class="content highlight"><span class="text">FREEDOM DiViNG，1m23s...</span></span></span>
+				</span>
+			</span>
+		</div>
+	</div>
+</div>
+</body>
+</html>
